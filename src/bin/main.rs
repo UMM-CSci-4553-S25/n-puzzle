@@ -1,9 +1,8 @@
 use anyhow::Context;
 use clap::Parser;
+use n_puzzle::n_puzzle::NPuzzle;
 use pathfinding::prelude::{astar, bfs, dfs, idastar, iddfs};
 use std::num::NonZeroU8;
-
-use n_puzzle::n_puzzle::NPuzzle;
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 enum SearchAlgorithm {
@@ -26,7 +25,7 @@ enum Heuristic {
 struct CliArgs {
     #[arg(short, long, default_value = "a-star")]
     algorithm: SearchAlgorithm,
-    #[arg(short, long, default_value = "taxicab")]
+    #[arg(short = 'r', long, default_value = "taxicab")]
     heuristic: Heuristic,
     #[arg(short, long, required = true, value_delimiter = ',')]
     pieces: Vec<NonZeroU8>,
@@ -35,6 +34,22 @@ struct CliArgs {
     #[arg(short, long, required = true, value_delimiter = ',')]
     y_blank: usize,
 }
+
+// Some example puzzles:
+//
+// Example from Wikipedia
+// let pieces =
+//     [12, 1, 2, 15, 11, 6, 5, 8, 7, 10, 9, 4, 13, 14, 3].map(|v| NonZeroU8::new(v).unwrap());
+// let blank_position = (3, 0);
+
+// Example from https://www.instructables.com/How-To-Solve-The-15-Puzzle/
+// let pieces =
+//     [1, 5, 10, 9, 15, 4, 14, 12, 2, 8, 13, 11, 7, 3, 6].map(|v| NonZeroU8::new(v).unwrap());
+// let blank_position = (1, 1);
+
+// A simple 8-puzzle example that should solve pretty quickly
+// let pieces = [7, 8, 5, 3, 1, 4, 6, 2].map(|v| NonZeroU8::new(v).unwrap());
+// let blank_position = (0, 2);
 
 fn main() -> anyhow::Result<()> {
     let CliArgs {
@@ -73,17 +88,17 @@ fn main() -> anyhow::Result<()> {
 
     let result = match algorithm {
         SearchAlgorithm::Bfs => bfs(&puzzle, NPuzzle::successors, NPuzzle::success).map(|path| {
-            let length = path.len();
-            (path, length)
+            let cost = path.len() - 1;
+            (path, cost)
         }),
         SearchAlgorithm::Dfs => dfs(puzzle, NPuzzle::successors, NPuzzle::success).map(|path| {
-            let length = path.len();
-            (path, length)
+            let cost = path.len() - 1;
+            (path, cost)
         }),
         SearchAlgorithm::IdDfs => {
             iddfs(puzzle, NPuzzle::successors, NPuzzle::success).map(|path| {
-                let length = path.len();
-                (path, length)
+                let cost = path.len() - 1;
+                (path, cost)
             })
         }
         SearchAlgorithm::AStar => astar(
@@ -100,41 +115,11 @@ fn main() -> anyhow::Result<()> {
         ),
     };
 
-    // Example from Wikipedia
-    // let pieces =
-    //     [12, 1, 2, 15, 11, 6, 5, 8, 7, 10, 9, 4, 13, 14, 3].map(|v| NonZeroU8::new(v).unwrap());
-    // let blank_position = (3, 0);
-    // Example from https://www.instructables.com/How-To-Solve-The-15-Puzzle/
-    // let pieces =
-    //     [1, 5, 10, 9, 15, 4, 14, 12, 2, 8, 13, 11, 7, 3, 6].map(|v| NonZeroU8::new(v).unwrap());
-    // let blank_position = (1, 1);
-    // let pieces = [7, 8, 5, 3, 1, 4, 6, 2].map(|v| NonZeroU8::new(v).unwrap());
-    // let blank_position = (0, 2);
-    // let puzzle = NPuzzle::new(4, pieces, blank_position).unwrap();
-
-    // let result = bfs(&puzzle, NPuzzle::successors, NPuzzle::success);
-
-    // let result = astar(
-    //     &puzzle,
-    //     NPuzzle::successors_with_costs,
-    //     // NPuzzle::num_incorrect,
-    //     NPuzzle::taxicab_distance,
-    //     NPuzzle::success,
-    // );
-
-    // let result = idastar(
-    //     &puzzle,
-    //     NPuzzle::successors_with_costs,
-    //     // NPuzzle::num_incorrect,
-    //     NPuzzle::taxicab_distance,
-    //     NPuzzle::success,
-    // );
-
-    let result = result.unwrap();
-    for node in result.0 {
+    let (path, cost) = result.unwrap();
+    for node in path {
         println!("{node}");
     }
-    println!("This solution passed through {} nodes.", result.1);
+    println!("This cost of this solution (the # of moves) was {cost}.");
 
     Ok(())
 }

@@ -2,9 +2,11 @@ use pathfinding::{
     matrix::{Matrix, MatrixFormatError},
     prelude::Weights,
 };
+
 use std::{fmt::Display, iter::once, num::NonZeroU8};
 
 pub type Board = Matrix<Option<NonZeroU8>>;
+
 pub type Pos = (usize, usize);
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -115,9 +117,51 @@ mod tests {
     use super::NPuzzle;
 
     #[test]
-    fn in_order() {
+    fn heuristics_when_solved() {
         let puzzle = NPuzzle::new(4, (1..16).map(|v| NonZeroU8::new(v).unwrap()), (3, 3)).unwrap();
         assert_eq!(puzzle.num_incorrect(), 0);
         assert_eq!(puzzle.taxicab_distance(), 0);
+    }
+
+    #[test]
+    fn heuristics_when_not_solved() {
+        let puzzle = NPuzzle::new(
+            3,
+            [1, 3, 7, 2, 6, 5, 4, 8].map(|v| NonZeroU8::new(v).unwrap()),
+            (0, 0),
+        )
+        .unwrap();
+        assert_eq!(puzzle.num_incorrect(), 6);
+        assert_eq!(puzzle.taxicab_distance(), 8);
+    }
+
+    #[test]
+    fn center_successors() {
+        let puzzle = NPuzzle::new(
+            3,
+            [7, 8, 5, 3, 1, 4, 6, 2].map(|v| NonZeroU8::new(v).unwrap()),
+            (1, 1),
+        )
+        .unwrap();
+        let successors = puzzle.successors();
+        assert_eq!(successors.len(), 4);
+        assert!(successors.iter().any(|s| s.blank_position == (0, 1)));
+        assert!(successors.iter().any(|s| s.blank_position == (1, 0)));
+        assert!(successors.iter().any(|s| s.blank_position == (1, 2)));
+        assert!(successors.iter().any(|s| s.blank_position == (2, 1)));
+    }
+
+    #[test]
+    fn corner_successors() {
+        let puzzle = NPuzzle::new(
+            3,
+            [7, 8, 5, 3, 1, 4, 6, 2].map(|v| NonZeroU8::new(v).unwrap()),
+            (0, 2),
+        )
+        .unwrap();
+        let successors = puzzle.successors();
+        assert_eq!(successors.len(), 2);
+        assert!(successors.iter().any(|s| s.blank_position == (0, 1)));
+        assert!(successors.iter().any(|s| s.blank_position == (1, 2)));
     }
 }
