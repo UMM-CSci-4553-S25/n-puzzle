@@ -10,7 +10,7 @@ enum SearchAlgorithm {
     Dfs,
     IdDfs,
     AStar,
-    IdaStar,
+    IdAStar,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
@@ -107,7 +107,7 @@ fn main() -> anyhow::Result<()> {
             heuristic_fn,
             NPuzzle::success,
         ),
-        SearchAlgorithm::IdaStar => idastar(
+        SearchAlgorithm::IdAStar => idastar(
             &puzzle,
             NPuzzle::successors_with_costs,
             heuristic_fn,
