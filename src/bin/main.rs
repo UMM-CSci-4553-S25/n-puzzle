@@ -4,6 +4,7 @@ use n_puzzle::n_puzzle::NPuzzle;
 use pathfinding::prelude::{astar, bfs, dfs, idastar, iddfs};
 use std::num::NonZeroU8;
 
+/// Enum representing the available search algorithms.
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 enum SearchAlgorithm {
     Bfs,
@@ -13,80 +14,79 @@ enum SearchAlgorithm {
     IdAStar,
 }
 
+/// Enum representing the available heuristics.
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 enum Heuristic {
     NumIncorrect,
     Taxicab,
 }
 
-// Argument structure for use with the `clap` crate
+/// Argument structure for use with the `clap` crate.
 #[derive(Parser, Debug)]
 #[command(about, long_about = None)]
 struct CliArgs {
+    /// The search algorithm to use.
     #[arg(short, long, default_value = "a-star")]
     algorithm: SearchAlgorithm,
+
+    /// The heuristic to use.
     #[arg(short = 'r', long, default_value = "taxicab")]
     heuristic: Heuristic,
-    #[arg(short, long, required = true, value_delimiter = ',')]
+
+    /// The pieces of the puzzle, specified as a comma-separated list of non-zero unsigned integers.
+    #[arg(short, long, required = true, value_delimiter = ',', value_parser = parse_nonzero_u8)]
     pieces: Vec<NonZeroU8>,
-    #[arg(short, long, required = true, value_delimiter = ',')]
+
+    /// The x-coordinate of the blank position.
+    #[arg(short, long, required = true)]
     x_blank: usize,
-    #[arg(short, long, required = true, value_delimiter = ',')]
+
+    /// The y-coordinate of the blank position.
+    #[arg(short, long, required = true)]
     y_blank: usize,
 }
 
-// Some example puzzles:
-//
-// Example from Wikipedia
-// let pieces =
-//     [12, 1, 2, 15, 11, 6, 5, 8, 7, 10, 9, 4, 13, 14, 3].map(|v| NonZeroU8::new(v).unwrap());
-// let blank_position = (3, 0);
-
-// Example from https://www.instructables.com/How-To-Solve-The-15-Puzzle/
-// let pieces =
-//     [1, 5, 10, 9, 15, 4, 14, 12, 2, 8, 13, 11, 7, 3, 6].map(|v| NonZeroU8::new(v).unwrap());
-// let blank_position = (1, 1);
-
-// A simple 8-puzzle example that should solve pretty quickly
-// let pieces = [7, 8, 5, 3, 1, 4, 6, 2].map(|v| NonZeroU8::new(v).unwrap());
-// let blank_position = (0, 2);
+/// Parses a string into a `NonZeroU8`.
+fn parse_nonzero_u8(s: &str) -> anyhow::Result<NonZeroU8> {
+    s.parse::<u8>()
+        .with_context(|| format!("Failed to parse '{}' as a number", s))?
+        .try_into()
+        .with_context(|| format!("Failed to convert '{}' to a positive number", s))
+}
 
 fn main() -> anyhow::Result<()> {
-    let CliArgs {
-        algorithm,
-        heuristic,
-        pieces,
-        x_blank,
-        y_blank,
-    } = CliArgs::parse();
+    // Parse command-line arguments.
+    let args = CliArgs::parse();
+    println!("{:?}", args);
 
-    let size = match pieces.len() {
+    let size = match args.pieces.len() {
         8 => 3,
         15 => 4,
         _ => anyhow::bail!(
             "Expected 8 or 15 pieces, but got {}; pass pieces in via the --pieces flag",
-            pieces.len()
+            args.pieces.len()
         ),
     };
 
     anyhow::ensure!(
-        x_blank < size,
-        "Expected x_blank to be less than {size}, but got {x_blank}; pass x_blank in via the --x_blank flag"
+        args.x_blank < size,
+        "Expected x_blank to be less than {size}, but got {}; pass x_blank in via the --x_blank flag", args.x_blank
     );
     anyhow::ensure!(
-        y_blank < size,
-        "Expected y_blank to be less than {size}, but got {y_blank}; pass y_blank in via the --y_blank flag"
+        args.y_blank < size,
+        "Expected y_blank to be less than {size}, but got {}; pass y_blank in via the --y_blank flag", args.y_blank
     );
 
-    let blank_position = (x_blank, y_blank);
-    let puzzle = NPuzzle::new(size, pieces, blank_position).context("Failed to create puzzle")?;
+    let blank_position = (args.x_blank, args.y_blank);
+    let puzzle =
+        NPuzzle::new(size, args.pieces, blank_position).context("Failed to create puzzle")?;
 
-    let heuristic_fn = match heuristic {
+    let heuristic_fn = match args.heuristic {
         Heuristic::NumIncorrect => NPuzzle::num_incorrect,
         Heuristic::Taxicab => NPuzzle::taxicab_distance,
     };
 
-    let result = match algorithm {
+    let result = match args.algorithm {
         SearchAlgorithm::Bfs => bfs(&puzzle, NPuzzle::successors, NPuzzle::success).map(|path| {
             let cost = path.len() - 1;
             (path, cost)
